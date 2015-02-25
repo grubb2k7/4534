@@ -89,9 +89,8 @@ void InterruptHandlerHigh() {
         // clear the interrupt flag
         PIR1bits.SSPIF = 0;
         // call the handler
-        i2c_int_handler();
+        i2c_master_int_handler();
     }
-
     // check to see if we have an interrupt on timer 0
     if (INTCONbits.TMR0IF) {
         INTCONbits.TMR0IF = 0; // clear this interrupt flag

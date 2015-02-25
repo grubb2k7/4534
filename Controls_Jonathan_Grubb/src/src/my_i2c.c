@@ -5,18 +5,40 @@
 #include <plib/i2c.h>
 #endif
 #include "my_i2c.h"
+#include <stdlib.h>
 
 static i2c_comm *ic_ptr;
 
 // Configure for I2C Master mode -- the variable "slave_addr" should be stored in
 //   i2c_comm (as pointed to by ic_ptr) for later use.
 
-void i2c_configure_master(unsigned char slave_addr) {
-    // Your code goes here
+void i2c_configure_master() {
+    //Setting TRIS bits that MSSP module uses
+    ic_ptr->status = I2C_MASTER_IDLE;
+    LATBbits.LATB4 = 0;
+    LATBbits.LATB5 = 0;
+    
+    TRISBbits.TRISB5 = 1;
+    TRISBbits.TRISB4 = 1;
+    //For debugging purposes
+    TRISBbits.TRISB0 = 0;
+    LATBbits.LATB0 = 0;
+
+    //Clear SSP1CON1 register
+    SSPCON1 = 0;
+    SSPSTAT = 0;
+    SSPADD  = 0;
+    //Enable master mode on SSPM register
+    SSPCON1 |= MASTER;
+    SSPSTAT |= SLEW_OFF;
+    SSPADD  |= 0x77;
+    //Enable SSPEN register
+    SSPCON1bits.SSPEN = 1;
 }
 
 // Sending in I2C Master mode [slave write]
 // 		returns -1 if the i2c bus is busy
+//              returns -2 if the length is bigger than buffer
 // 		return 0 otherwise
 // Will start the sending of an i2c message -- interrupt handler will take care of
 //   completing the message send.  When the i2c message is sent (or the send has failed)
@@ -28,12 +50,28 @@ void i2c_configure_master(unsigned char slave_addr) {
 //   the structure to which ic_ptr points [there is already a suitable buffer there].
 
 unsigned char i2c_master_send(unsigned char length, unsigned char *msg) {
-    // Your code goes here
-    return(0);
+    if(length > MAXI2CBUF || length <= 0) return -2;
+    //Would probably want to later on throw this message in a queue instead of
+    //ignoring it
+    if(ic_ptr->status != I2C_MASTER_IDLE) return -1;
+    //The last index in msg is the target slave address
+    ic_ptr->slave_addr = msg[length] << 1;
+    //inserting the message into the msg buffer
+    for(ic_ptr->outbuflen = 0; ic_ptr->outbuflen < length; ic_ptr->outbuflen++) {
+        ic_ptr->outbuffer[ic_ptr->outbuflen] = msg[ic_ptr->outbuflen];
+    }
+    //Writing the write bit in the address for send routine
+    ic_ptr->msg_trans_type = I2C_WRITE;
+    ic_ptr->status = I2C_MASTER_START;
+    ic_ptr->outbufind = 0;
+    //Throwing Start Enable bit
+    SSP1CON2bits.SEN = 1;
+    return 0;
 }
 
 // Receiving in I2C Master mode [slave read]
 // 		returns -1 if the i2c bus is busy
+//              returns -2 if lenght is <= 0
 // 		return 0 otherwise
 // Will start the receiving of an i2c message -- interrupt handler will take care of
 //   completing the i2c message receive.  When the receive is complete (or has failed)
@@ -45,9 +83,87 @@ unsigned char i2c_master_send(unsigned char length, unsigned char *msg) {
 //   is determined by the parameter passed to i2c_master_recv()].
 // The interrupt handler will be responsible for copying the message received into
 
-unsigned char i2c_master_recv(unsigned char length) {
-    // Your code goes here
+unsigned char i2c_master_recv(unsigned char length, unsigned char slave_addr) {
+    if(length <= 0) return -2;
+    if(ic_ptr->status != I2C_MASTER_IDLE) return -1;
+
+    ic_ptr->slave_addr = (slave_addr << 1) | 0x01;
+    ic_ptr->outbuflen = length;
+    ic_ptr->outbufind = 0xFF;
+    ic_ptr->msg_trans_type = I2C_READ;
+    ic_ptr->status = I2C_MASTER_START;
+    SSP1CON2bits.SEN = 1;
     return(0);
+}
+
+void i2c_master_int_handler() {
+    switch(ic_ptr->status) {
+        case I2C_MASTER_START: {
+            //Waiting till the Start bit is set if it already hasn't by
+            //hardware
+            while(SSP1CON2bits.SEN);
+            if(ic_ptr->msg_trans_type == I2C_WRITE) {
+                ic_ptr->status = I2C_MASTER_SEND;
+            }
+            else if(ic_ptr->msg_trans_type == I2C_READ) {
+                ic_ptr->status = I2C_MASTER_RCV;
+            }
+            //Address -> BUS BUFFER
+            SSP1BUF = ic_ptr->slave_addr;
+            break;
+        }
+        case I2C_MASTER_STOP: {
+            //while(SSP1CON2bits.ACKSTAT);
+            ic_ptr->status = I2C_MASTER_IDLE;
+            break;
+        }
+        case I2C_MASTER_SEND: {
+            while(SSP1CON2bits.ACKSTAT);
+            if(ic_ptr->outbufind < ic_ptr->outbuflen) {
+                SSP1BUF = ic_ptr->outbuffer[ic_ptr->outbufind];
+                ic_ptr->outbufind++;
+            }
+            else if(ic_ptr->outbufind == ic_ptr->outbuflen) {
+                ic_ptr->status = I2C_MASTER_STOP;
+                SSP1CON2bits.PEN = 1;
+            }
+            break;
+        }
+        case I2C_MASTER_RCEN: {
+            ic_ptr->status = I2C_MASTER_RCV;
+            SSP1CON2bits.RCEN = 1;
+            break;
+        }
+        case I2C_MASTER_RCV: {
+            if(ic_ptr->outbufind != 0xFF && ic_ptr->outbufind < ic_ptr->outbuflen) {
+                //Gets the data from the BUF
+                ic_ptr->outbuffer[ic_ptr->outbufind] = SSP1BUF;
+                ic_ptr->outbufind++;
+                if(ic_ptr->outbufind < ic_ptr->outbuflen) {
+                    //Send acknowledgment and continue receiving data
+                    ic_ptr->status = I2C_MASTER_RCEN;
+                    SSP1CON2bits.ACKDT = 0;
+                    SSP1CON2bits.ACKEN = 1;
+                }
+                else {
+                    //Acknowledgement is not sent and stop receiving
+                    SSP1CON2bits.ACKDT = 1;
+                    SSP1CON2bits.ACKEN = 1;
+                }
+            }
+            //Waiting on slave ACK if we are just starting
+            else if(ic_ptr->outbufind == 0xFF) {
+                while(SSP1CON2bits.ACKSTAT);
+                ic_ptr->outbufind = 0;
+                SSP1CON2bits.RCEN = 1;
+            }
+            else {
+                ic_ptr->status = I2C_MASTER_STOP;
+                SSP1CON2bits.PEN = 1;
+            }
+            break;
+        }
+    }
 }
 
 void start_i2c_slave_reply(unsigned char length, unsigned char *msg) {
