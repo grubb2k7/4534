@@ -88,8 +88,8 @@ unsigned char i2c_master_recv(unsigned char length, unsigned char slave_addr) {
     if(ic_ptr->status != I2C_MASTER_IDLE) return -1;
 
     ic_ptr->slave_addr = (slave_addr << 1) | 0x01;
-    ic_ptr->outbuflen = length;
-    ic_ptr->outbufind = 0xFF;
+    ic_ptr->buflen = length;
+    ic_ptr->bufind = 0xFF;
     ic_ptr->msg_trans_type = I2C_READ;
     ic_ptr->status = I2C_MASTER_START;
     SSP1CON2bits.SEN = 1;
@@ -135,11 +135,11 @@ void i2c_master_int_handler() {
             break;
         }
         case I2C_MASTER_RCV: {
-            if(ic_ptr->outbufind != 0xFF && ic_ptr->outbufind < ic_ptr->outbuflen) {
+            if(ic_ptr->bufind != 0xFF && ic_ptr->bufind < ic_ptr->buflen) {
                 //Gets the data from the BUF
-                ic_ptr->outbuffer[ic_ptr->outbufind] = SSP1BUF;
-                ic_ptr->outbufind++;
-                if(ic_ptr->outbufind < ic_ptr->outbuflen) {
+                ic_ptr->buffer[ic_ptr->bufind] = SSP1BUF;
+                ic_ptr->bufind++;
+                if(ic_ptr->bufind < ic_ptr->buflen) {
                     //Send acknowledgment and continue receiving data
                     ic_ptr->status = I2C_MASTER_RCEN;
                     SSP1CON2bits.ACKDT = 0;
@@ -152,9 +152,9 @@ void i2c_master_int_handler() {
                 }
             }
             //Waiting on slave ACK if we are just starting
-            else if(ic_ptr->outbufind == 0xFF) {
+            else if(ic_ptr->bufind == 0xFF) {
                 while(SSP1CON2bits.ACKSTAT);
-                ic_ptr->outbufind = 0;
+                ic_ptr->bufind = 0;
                 SSP1CON2bits.RCEN = 1;
             }
             else {
@@ -164,6 +164,20 @@ void i2c_master_int_handler() {
             break;
         }
     }
+}
+
+void wait_till_idle(){
+    while(ic_ptr->status != I2C_MASTER_IDLE);
+    return;
+}
+
+unsigned char* get_buffer(){
+    unsigned char ret_buf[MAXI2CBUF];
+    int i;
+    for(i = 0; i < ic_ptr->buflen; i++){
+        ret_buf[i] = ic_ptr->buffer[i];
+    }
+    return &ret_buf;
 }
 
 void start_i2c_slave_reply(unsigned char length, unsigned char *msg) {

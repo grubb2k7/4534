@@ -314,8 +314,20 @@ void main(void) {
     // that should get them.  Although the subroutines are not threads, but
     // they can be equated with the tasks in your task diagram if you
     // structure them properly.
-    unsigned char msg[] = {0x11, 0x12, 0x13, 0x14, 0x4D};
-    i2c_master_recv(2, 0x4D);
-    while(1);
+    unsigned char msgMotor[] = {0xA8, 0x4F};
+    unsigned char msgSensor[] = {0x55, 0x4D};
+    while(1) {
+        i2c_master_send(1, &msgMotor);
+        wait_till_idle();
+        i2c_master_send(1, &msgSensor);
+        wait_till_idle();
+        i2c_master_recv(1, msgMotor[1]);
+        wait_till_idle();
+        msgMotor[0] = get_buffer()[0];
+        i2c_master_recv(1, msgSensor[1]);
+        wait_till_idle();
+        msgSensor[0] = get_buffer()[0];
+
+    }
 
 }

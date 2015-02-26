@@ -4,8 +4,8 @@ Version 3.2 HI-TECH Software Intermediate Code
 [s S1134 `uc -> 4 `i `uc 1 ]
 [n S1134 __uart_comm buffer buflen ]
 "8 ../src/my_i2c.h
-[s S1135 `uc -> 10 `i `uc 1 `uc 1 `uc 1 `uc 1 `uc 1 `uc -> 10 `i `uc 1 `uc 1 `uc 1 `uc 1 `uc 1 ]
-[n S1135 __i2c_comm buffer buflen event_count status error_code error_count outbuffer outbuflen outbufind slave_addr msg_trans_type busy ]
+[s S1135 `uc -> 10 `i `uc 1 `uc 1 `uc 1 `uc 1 `uc 1 `uc 1 `uc -> 10 `i `uc 1 `uc 1 `uc 1 `uc 1 `uc 1 ]
+[n S1135 __i2c_comm buffer buflen bufind event_count status error_code error_count outbuffer outbuflen outbufind slave_addr msg_trans_type busy ]
 "1 ../src/uart_thread.h
 [s S1136 `i 1 ]
 [n S1136 __uart_thread_struct data ]
@@ -30,7 +30,7 @@ Version 3.2 HI-TECH Software Intermediate Code
 [v _OSCTUNEbits `VS596 ~T0 @X0 0 e@3995 ]
 "15 ../src/my_uart.h
 [v _init_uart_recv `(v ~T0 @X0 0 ef1`*S1134 ]
-"47 ../src/my_i2c.h
+"48 ../src/my_i2c.h
 [v _init_i2c `(v ~T0 @X0 0 ef1`*S1135 ]
 "6 ../src/timer1_thread.h
 [v _init_timer1_lthread `(v ~T0 @X0 0 ef1`*S1137 ]
@@ -54,7 +54,7 @@ Version 3.2 HI-TECH Software Intermediate Code
 [n S613 . . . . ]
 "9224
 [v _IPR1bits `VS613 ~T0 @X0 0 e@3999 ]
-"52 ../src/my_i2c.h
+"53 ../src/my_i2c.h
 [v _i2c_configure_master `(v ~T0 @X0 0 ef ]
 "9021 C:\Program Files\Microchip\xc8\v1.32\include\pic18f46j50.h
 [s S606 :1 `uc 1 :1 `uc 1 :1 `uc 1 :1 `uc 1 :1 `uc 1 :1 `uc 1 :1 `uc 1 :1 `uc 1 ]
@@ -75,7 +75,13 @@ Version 3.2 HI-TECH Software Intermediate Code
 "12 ../src/interrupts.h
 [v _enable_interrupts `(v ~T0 @X0 0 ef ]
 "54 ../src/my_i2c.h
+[v _i2c_master_send `(uc ~T0 @X0 0 ef2`uc`*uc ]
+"56
+[v _wait_till_idle `(v ~T0 @X0 0 ef ]
+"55
 [v _i2c_master_recv `(uc ~T0 @X0 0 ef2`uc`uc ]
+"57
+[v _get_buffer `(*uc ~T0 @X0 0 ef ]
 [; ;htc.h: 21: extern const char __xc8_OPTIM_SPEED;
 [; ;htc.h: 24: extern void __builtin_software_breakpoint(void);
 [; ;pic18f46j50.h: 47: extern volatile unsigned char RPOR0 @ 0xEC6;
@@ -8448,25 +8454,28 @@ Version 3.2 HI-TECH Software Intermediate Code
 [; ;my_i2c.h: 8: typedef struct __i2c_comm {
 [; ;my_i2c.h: 9: unsigned char buffer[10];
 [; ;my_i2c.h: 10: unsigned char buflen;
-[; ;my_i2c.h: 11: unsigned char event_count;
-[; ;my_i2c.h: 12: unsigned char status;
-[; ;my_i2c.h: 13: unsigned char error_code;
-[; ;my_i2c.h: 14: unsigned char error_count;
-[; ;my_i2c.h: 15: unsigned char outbuffer[10];
-[; ;my_i2c.h: 16: unsigned char outbuflen;
-[; ;my_i2c.h: 17: unsigned char outbufind;
-[; ;my_i2c.h: 18: unsigned char slave_addr;
-[; ;my_i2c.h: 19: unsigned char msg_trans_type;
-[; ;my_i2c.h: 20: bool busy;
-[; ;my_i2c.h: 21: } i2c_comm;
-[; ;my_i2c.h: 47: void init_i2c(i2c_comm *);
-[; ;my_i2c.h: 48: void i2c_int_handler(void);
-[; ;my_i2c.h: 49: void i2c_master_int_handler(void);
-[; ;my_i2c.h: 50: void start_i2c_slave_reply(unsigned char, unsigned char *);
-[; ;my_i2c.h: 51: void i2c_configure_slave(unsigned char);
-[; ;my_i2c.h: 52: void i2c_configure_master();
-[; ;my_i2c.h: 53: unsigned char i2c_master_send(unsigned char, unsigned char *);
-[; ;my_i2c.h: 54: unsigned char i2c_master_recv(unsigned char, unsigned char);
+[; ;my_i2c.h: 11: unsigned char bufind;
+[; ;my_i2c.h: 12: unsigned char event_count;
+[; ;my_i2c.h: 13: unsigned char status;
+[; ;my_i2c.h: 14: unsigned char error_code;
+[; ;my_i2c.h: 15: unsigned char error_count;
+[; ;my_i2c.h: 16: unsigned char outbuffer[10];
+[; ;my_i2c.h: 17: unsigned char outbuflen;
+[; ;my_i2c.h: 18: unsigned char outbufind;
+[; ;my_i2c.h: 19: unsigned char slave_addr;
+[; ;my_i2c.h: 20: unsigned char msg_trans_type;
+[; ;my_i2c.h: 21: bool busy;
+[; ;my_i2c.h: 22: } i2c_comm;
+[; ;my_i2c.h: 48: void init_i2c(i2c_comm *);
+[; ;my_i2c.h: 49: void i2c_int_handler(void);
+[; ;my_i2c.h: 50: void i2c_master_int_handler(void);
+[; ;my_i2c.h: 51: void start_i2c_slave_reply(unsigned char, unsigned char *);
+[; ;my_i2c.h: 52: void i2c_configure_slave(unsigned char);
+[; ;my_i2c.h: 53: void i2c_configure_master();
+[; ;my_i2c.h: 54: unsigned char i2c_master_send(unsigned char, unsigned char *);
+[; ;my_i2c.h: 55: unsigned char i2c_master_recv(unsigned char, unsigned char);
+[; ;my_i2c.h: 56: void wait_till_idle(void);
+[; ;my_i2c.h: 57: unsigned char* get_buffer();
 [; ;uart_thread.h: 1: typedef struct __uart_thread_struct {
 [; ;uart_thread.h: 3: int data;
 [; ;uart_thread.h: 4: } uart_thread_struct;
@@ -8611,30 +8620,70 @@ Version 3.2 HI-TECH Software Intermediate Code
 [; ;main.c: 297: enable_interrupts();
 "297
 [e ( _enable_interrupts ..  ]
-[v F9234 `uc ~T0 @X0 -> 0 `x s ]
-[i F9234
+[v F9238 `uc ~T0 @X0 -> 0 `x s ]
+[i F9238
 :U ..
 "317
--> -> 17 `i `uc
--> -> 18 `i `uc
--> -> 19 `i `uc
--> -> 20 `i `uc
+-> -> 168 `i `uc
+-> -> 79 `i `uc
+..
+]
+[v _msgMotor `uc ~T0 @X0 2  a ]
+[; ;main.c: 317: unsigned char msgMotor[] = {0xA8, 0x4F};
+[e = _msgMotor F9238 ]
+[v F9240 `uc ~T0 @X0 -> 0 `x s ]
+[i F9240
+:U ..
+"318
+-> -> 85 `i `uc
 -> -> 77 `i `uc
 ..
 ]
-[v _msg `uc ~T0 @X0 5  a ]
-[; ;main.c: 317: unsigned char msg[] = {0x11, 0x12, 0x13, 0x14, 0x4D};
-[e = _msg F9234 ]
-[; ;main.c: 318: i2c_master_recv(2, 0x4D);
-"318
-[e ( _i2c_master_recv (2 , -> -> 2 `i `uc -> -> 77 `i `uc ]
-[; ;main.c: 319: while(1);
+[v _msgSensor `uc ~T0 @X0 2  a ]
+[; ;main.c: 318: unsigned char msgSensor[] = {0x55, 0x4D};
+[e = _msgSensor F9240 ]
+[; ;main.c: 319: while(1) {
 "319
 [e :U 1141 ]
+{
+[; ;main.c: 320: i2c_master_send(1, &msgMotor);
+"320
+[e ( _i2c_master_send (2 , -> -> 1 `i `uc &U _msgMotor ]
+[; ;main.c: 321: wait_till_idle();
+"321
+[e ( _wait_till_idle ..  ]
+[; ;main.c: 322: i2c_master_send(1, &msgSensor);
+"322
+[e ( _i2c_master_send (2 , -> -> 1 `i `uc &U _msgSensor ]
+[; ;main.c: 323: wait_till_idle();
+"323
+[e ( _wait_till_idle ..  ]
+[; ;main.c: 324: i2c_master_recv(1, msgMotor[1]);
+"324
+[e ( _i2c_master_recv (2 , -> -> 1 `i `uc *U + &U _msgMotor * -> -> -> 1 `i `ui `ux -> -> # *U &U _msgMotor `ui `ux ]
+[; ;main.c: 325: wait_till_idle();
+"325
+[e ( _wait_till_idle ..  ]
+[; ;main.c: 326: msgMotor[0] = get_buffer()[0];
+"326
+[e = *U + &U _msgMotor * -> -> -> 0 `i `ui `ux -> -> # *U &U _msgMotor `ui `ux *U + ( _get_buffer ..  * -> -> 0 `i `x -> -> # *U ( _get_buffer ..  `i `x ]
+[; ;main.c: 327: i2c_master_recv(1, msgSensor[1]);
+"327
+[e ( _i2c_master_recv (2 , -> -> 1 `i `uc *U + &U _msgSensor * -> -> -> 1 `i `ui `ux -> -> # *U &U _msgSensor `ui `ux ]
+[; ;main.c: 328: wait_till_idle();
+"328
+[e ( _wait_till_idle ..  ]
+[; ;main.c: 329: msgSensor[0] = get_buffer()[0];
+"329
+[e = *U + &U _msgSensor * -> -> -> 0 `i `ui `ux -> -> # *U &U _msgSensor `ui `ux *U + ( _get_buffer ..  * -> -> 0 `i `x -> -> # *U ( _get_buffer ..  `i `x ]
+"331
+}
 [e :U 1140 ]
+"319
 [e $U 1141  ]
 [e :U 1142 ]
-[; ;main.c: 321: }
-"321
+[; ;main.c: 331: }
+[; ;main.c: 333: }
+"333
 [e :UE 1139 ]
 }

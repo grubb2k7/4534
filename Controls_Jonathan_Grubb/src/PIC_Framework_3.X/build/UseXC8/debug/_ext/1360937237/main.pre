@@ -10960,6 +10960,7 @@ typedef unsigned char bool;
 typedef struct __i2c_comm {
 unsigned char buffer[10];
 unsigned char buflen;
+unsigned char bufind;
 unsigned char event_count;
 unsigned char status;
 unsigned char error_code;
@@ -10972,7 +10973,7 @@ unsigned char msg_trans_type;
 bool busy;
 } i2c_comm;
 
-# 47
+# 48
 void init_i2c(i2c_comm *);
 void i2c_int_handler(void);
 void i2c_master_int_handler(void);
@@ -10981,6 +10982,8 @@ void i2c_configure_slave(unsigned char);
 void i2c_configure_master();
 unsigned char i2c_master_send(unsigned char, unsigned char *);
 unsigned char i2c_master_recv(unsigned char, unsigned char);
+void wait_till_idle(void);
+unsigned char* get_buffer();
 
 # 1 "../src/uart_thread.h"
 typedef struct __uart_thread_struct {
@@ -11108,8 +11111,13 @@ Open1USART(0b01111111 & 0b11111111 & 0b11111110 & 0b11111101 &
 enable_interrupts();
 
 # 317
-unsigned char msg[] = {0x11, 0x12, 0x13, 0x14, 0x4D};
-i2c_master_recv(1, 0x4D);
-while(1);
+unsigned char msg[] = {0xA8, 0x4F};
+while(1) {
+i2c_master_send(1, &msg);
+wait_till_idle();
+i2c_master_recv(1, msg[1]);
+wait_till_idle();
+msg[0] = get_buffer()[0];
+}
 
 }
